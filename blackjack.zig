@@ -3,253 +3,9 @@ const print = std.debug.print;
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 
-const Suit = enum {
-    clubs,
-    diamonds,
-    hearts,
-    spades,
-};
+const cards = @import("cards.zig");
 
-const Rank = enum {
-    two,
-    three,
-    four,
-    five,
-    six,
-    seven,
-    eight,
-    nine,
-    ten,
-    jack,
-    queen,
-    king,
-    ace,
-};
-
-// const RankValueType = union(enum) {
-//     two: u8,
-//     three: u8,
-//     four: u8,
-//     five: u8,
-//     six: u8,
-//     seven: u8,
-//     eight: u8,
-//     nine: u8,
-//     ten: u8,
-//     jack: u8,
-//     queen: u8,
-//     king: u8,
-//     ace: .{
-//         .lower,
-//         .upper,
-//     },
-// };
-
-// const RankValueBlackjack = RankValueType{
-//     .two = 2,
-//     .three = 3,
-//     .four = 4,
-//     .five = 5,
-//     .six = 6,
-//     .seven = 7,
-//     .eight = 8,
-//     .nine = 9,
-//     .ten = 10,
-//     .jack = 10,
-//     .queen = 10,
-//     .king = 10,
-//     .ace = .{
-//         .lower = 1,
-//         .upper = 11,
-//     },
-// };
-
-const Card = struct {
-    suit: Suit,
-    rank: Rank,
-
-    fn suitString(self: @This()) []const u8 {
-        switch (self.suit) {
-            .clubs => return "clubs",
-            .diamonds => return "diamonds",
-            .hearts => return "hearts",
-            .spades => return "spades",
-        }
-    }
-
-    fn suitStringShort(self: @This()) []const u8 {
-        switch (self.suit) {
-            .clubs => return "C",
-            .diamonds => return "D",
-            .hearts => return "H",
-            .spades => return "S",
-        }
-    }
-
-    fn rankString(self: @This()) []const u8 {
-        switch (self.rank) {
-            .two => return "2",
-            .three => return "3",
-            .four => return "4",
-            .five => return "5",
-            .six => return "6",
-            .seven => return "7",
-            .eight => return "8",
-            .nine => return "9",
-            .ten => return "10",
-            .jack => return "J",
-            .queen => return "Q",
-            .king => return "K",
-            .ace => return "A",
-        }
-    }
-
-    fn printCard(self: @This()) void {
-        print("{s} of {s}\n", .{ self.rankString(), self.suitString() });
-    }
-
-    fn printCardShort(self: @This()) void {
-        print("{s}{s}\n", .{ self.rankString(), self.suitStringShort() });
-    }
-
-    fn isFaceCard(self: @This()) bool {
-        switch (self.rank) {
-            .two, .three, .four, .five, .six, .seven, .eight, .nine => return false,
-            else => return true,
-        }
-    }
-
-    fn isFaceOrTenCard(self: @This()) bool {
-        switch (self.rank) {
-            .two, .three, .four, .five, .six, .seven, .eight, .nine => return false,
-            else => return true,
-        }
-    }
-
-    fn isAce(self: @This()) bool {
-        return self.rank == .ace;
-    }
-
-    fn isTenValue(self: @This()) bool {
-        switch (self.rank) {
-            .two, .three, .four, .five, .six, .seven, .eight, .nine, .ace => return false,
-            else => return true,
-        }
-    }
-};
-
-//constants
-const ALL_SUITS = [4]Suit{ Suit.clubs, Suit.diamonds, Suit.hearts, Suit.spades };
-const ALL_RANKS = [13]Rank{
-    Rank.two,
-    Rank.three,
-    Rank.four,
-    Rank.five,
-    Rank.six,
-    Rank.seven,
-    Rank.eight,
-    Rank.nine,
-    Rank.ten,
-    Rank.jack,
-    Rank.queen,
-    Rank.king,
-    Rank.ace,
-};
-
-const STANDARD_DECK_SIZE = 52;
-const MAX_NUM_OF_DECKS = 4;
-const MAX_CAPACITY = MAX_NUM_OF_DECKS * STANDARD_DECK_SIZE;
-
-const cardCollection = struct {
-    cards: []?Card,
-    num_cards: usize,
-    allocator: Allocator,
-
-    fn printCardsShort(self: @This()) void {
-        // print function for debugging/testing
-        var idx: usize = 0;
-        while ((idx < self.num_cards) and (self.cards[idx] != null)) {
-            self.cards[idx].?.printCardShort();
-            idx += 1;
-        }
-    }
-
-    pub fn num_cards(self: @This()) usize {
-        return self.num_cards;
-    }
-
-    pub fn initEmpty(allocator: Allocator) !cardCollection {
-        var result = try allocator.alloc(?Card, MAX_CAPACITY);
-
-        // const all_nulls = [_]?Card{null} ** MAX_CAPACITY;
-        // _ = all_nulls;
-
-        for (result, 0..) |value, i| {
-            _ = value;
-            result[i] = null;
-        }
-
-        return cardCollection{
-            .cards = result,
-            .num_cards = 0,
-            .allocator = allocator,
-        };
-    }
-
-    pub fn pushCard(self: *@This(), new_card: Card) !void {
-        if (self.num_cards >= MAX_CAPACITY) {
-            return error.CapacityReached;
-        } else {
-            self.cards[self.num_cards] = new_card;
-            self.num_cards += 1;
-        }
-    }
-
-    pub fn initStandardDeck(allocator: Allocator, num_of_decks: usize) !cardCollection {
-        if (num_of_decks > 0 and num_of_decks * STANDARD_DECK_SIZE <= MAX_CAPACITY) {
-            var new_deck = try initEmpty(allocator);
-
-            var counter: usize = 0;
-            while (counter < num_of_decks) {
-                for (ALL_SUITS) |suit_val| {
-                    for (ALL_RANKS) |rank_val| {
-                        try new_deck.pushCard(Card{ .suit = suit_val, .rank = rank_val });
-                    }
-                }
-                counter += 1;
-            }
-            new_deck.cards = new_deck.cards[0..new_deck.num_cards];
-            return new_deck;
-        } else {
-            return error.InvalidNumOfDecks;
-        }
-    }
-
-    pub fn shuffle(self: @This(), rand: std.rand.Random) void {
-        rand.shuffle(?Card, self.cards);
-    }
-
-    pub fn popCard(self: *@This()) !Card {
-        if (self.num_cards > 0) {
-            const pop_card = self.cards[self.num_cards - 1];
-            self.cards[self.num_cards - 1] = null;
-            self.num_cards -= 1;
-            self.cards = self.cards[0..self.num_cards];
-            return pop_card.?;
-        }
-        return error.CardCollectionEmpty;
-    }
-
-    pub fn popSendCardTo(self: *@This(), target: *cardCollection) !void {
-        const card = try self.popCard();
-
-        try target.pushCard(card);
-    }
-
-    pub fn free(self: *@This()) void {
-        self.allocator.free(self.cards);
-    }
-};
+const MAX_NUM_OF_DECKS = cards.MAX_NUM_OF_DECKS;
 
 //blackjack main skeleton
 // pub fn main() !void {
@@ -303,11 +59,27 @@ const GameSetupConfig = struct {
         };
     }
 };
+
+const PlayerBet = struct {
+    player_n: u8,
+    bet: u8,
+    split: bool = false,
+    double: bool = false,
+    insurance: bool = false,
+    pub fn init(player_n: u8, bet: u8) @This() {
+        return @This(){
+            .player_n = player_n,
+            .bet = bet,
+        };
+    }
+};
+// std.ArrayList(u8)
+
 const GameState = union(enum) {
     start,
     setup,
     betting: GameSetupConfig,
-    deal,
+    deal: std.ArrayList(PlayerBet),
     scoring,
     payout,
     end_game,
@@ -332,6 +104,14 @@ const PlayerBanks = struct {
     }
     pub fn payout(self: @This(), player: u8, pay: u8) void {
         self.banks[player] = self.banks[player] + pay;
+    }
+
+    pub fn getPlayerBank(self: @This(), player: u8) !u8 {
+        if (player >= self.banks.len) {
+            return error.InvalidPlayerError;
+        }
+
+        return self.banks[player];
     }
 
     fn printDebug(self: @This()) void {
@@ -424,23 +204,27 @@ pub fn takeBets(player_banks: PlayerBanks) !GameState {
     const stdout = std.io.getStdOut().writer();
     try stdout.writeAll("\n\n***BETTING***\n\n");
 
-    for (player_banks.banks, 0..) |value, i| {
-        try stdout.print("\n\n PLAYER {} AVAILABLE BANK: {}\nPlease Enter Your Bet (0-{}): ", .{ i + 1, value, value });
+    var idx: u8 = 0;
+
+    while (idx < player_banks.banks.len) {
+        try stdout.print("\n\n PLAYER {} AVAILABLE BANK: {!}\nPlease Enter Your Bet (0-{!}): ", .{ idx, player_banks.getPlayerBank(idx), player_banks.getPlayerBank(idx) });
 
         const bet_amount = getNumericMenuInput() catch blk: {
             try stdout.writeAll("Invalid bet default to 0.\n");
             break :blk 0;
         };
 
-        player_banks.makeBet(@as(u8, i), bet_amount) catch {
-            player_banks.makeBet(@as(u8, i), 0);
+        player_banks.makeBet(idx, bet_amount) catch {
+            try player_banks.makeBet(idx, 0);
         };
+
+        idx += 1;
     }
 
     return GameState.deal;
 }
 
-pub fn valueBlackjack(card: Card) u8 {
+pub fn valueBlackjack(card: cards.Card) u8 {
     switch (card.rank) {
         .two => return 2,
         .three => return 3,
@@ -458,18 +242,18 @@ pub fn valueBlackjack(card: Card) u8 {
     }
 }
 
-pub fn checkForBlackjack(hand: cardCollection) bool {
+pub fn checkForBlackjack(hand: cards.cardCollection) bool {
     return (hand.num_cards == 2) and ((hand.cards[0].?.isAce() and hand.cards[1].?.isTenValue()) or (hand.cards[0].?.isTenValue() and hand.cards[1].?.isAce()));
 }
 
-fn createScoreList(hand: cardCollection, allocator: Allocator) !std.ArrayList(u8) {
+fn createScoreList(hand: cards.cardCollection, allocator: Allocator) !std.ArrayList(u8) {
     var scores = std.ArrayList(u8).init(allocator);
     try scores.append(0);
 
     var cards_idx: usize = 0;
 
     while ((cards_idx < hand.num_cards) and (hand.cards[cards_idx] != null)) {
-        if (hand.cards[cards_idx].?.rank != Rank.ace) {
+        if (hand.cards[cards_idx].?.rank != cards.Rank.ace) {
             for (scores.items, 0..) |val, i| {
                 _ = val;
                 scores.items[i] += valueBlackjack(hand.cards[cards_idx].?);
@@ -493,7 +277,7 @@ fn createScoreList(hand: cardCollection, allocator: Allocator) !std.ArrayList(u8
     return scores;
 }
 
-pub fn bestScore(hand: cardCollection, allocator: Allocator) !u8 {
+pub fn bestScore(hand: cards.cardCollection, allocator: Allocator) !u8 {
     const score_list = try createScoreList(hand, allocator);
     // defer allocator.free(score_list);
 
@@ -507,41 +291,55 @@ pub fn bestScore(hand: cardCollection, allocator: Allocator) !u8 {
 }
 
 // tests
-test "player banks" {
-    const stdout = std.io.getStdOut().writer();
+
+test "take bets" {
     const new_config = GameSetupConfig.init(2, 4, 200);
-
     var curr_state: GameState = GameState{ .betting = new_config };
-
     const allocator = std.heap.page_allocator;
-
-    // var result = try allocator.alloc(u8, curr_state.betting.players);
-    // for (result, 0..) |val, i| {
-    //     _ = val;
-    //     result[i] = curr_state.betting.bank_size;
-    // }
     const player_banks: PlayerBanks = try PlayerBanks.init(curr_state.betting, allocator);
-    player_banks.printDebug();
+    curr_state = try takeBets(player_banks);
 
-    player_banks.makeBet(0, 50) catch {
-        try stdout.writeAll("Insufficient funds.");
-    };
-    player_banks.makeBet(1, 100) catch {
-        try stdout.writeAll("Insufficient funds.");
-    };
+    const player_0 = try player_banks.getPlayerBank(0);
+    const player_1 = try player_banks.getPlayerBank(1);
 
-    player_banks.printDebug();
-
-    player_banks.payout(0, 50);
-
-    player_banks.payout(1, 100);
-
-    player_banks.printDebug();
-
-    // curr_state = takeBets(&player_banks);
-
-    // player_banks.printDebug();
+    try std.testing.expect(player_0 == 150);
+    try std.testing.expect(player_1 == 100);
 }
+// test "player banks" {
+//     const stdout = std.io.getStdOut().writer();
+//     const new_config = GameSetupConfig.init(2, 4, 200);
+
+//     var curr_state: GameState = GameState{ .betting = new_config };
+
+//     const allocator = std.heap.page_allocator;
+
+//     // var result = try allocator.alloc(u8, curr_state.betting.players);
+//     // for (result, 0..) |val, i| {
+//     //     _ = val;
+//     //     result[i] = curr_state.betting.bank_size;
+//     // }
+//     const player_banks: PlayerBanks = try PlayerBanks.init(curr_state.betting, allocator);
+//     player_banks.printDebug();
+
+//     player_banks.makeBet(0, 50) catch {
+//         try stdout.writeAll("Insufficient funds.");
+//     };
+//     player_banks.makeBet(1, 100) catch {
+//         try stdout.writeAll("Insufficient funds.");
+//     };
+
+//     player_banks.printDebug();
+
+//     player_banks.payout(0, 50);
+
+//     player_banks.payout(1, 100);
+
+//     player_banks.printDebug();
+
+//     // curr_state = takeBets(&player_banks);
+
+//     // player_banks.printDebug();
+// }
 
 // test "setup" {
 //     var curr_state: GameState = GameState.setup;
